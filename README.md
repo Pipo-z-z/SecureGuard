@@ -1,4 +1,4 @@
-# SecureGuard : Deteccón de Vulnerabilidades Mediante Escaneo de Puertos, Sniffer y Keylogger
+# SecureGuard : Detección de Vulnerabilidades Mediante Escaneo de Puertos, Sniffer y Keylogger
 ### Esta herramienta....floro
 ## Tabla de contenidos
 ## Descripción
