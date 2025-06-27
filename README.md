@@ -48,7 +48,6 @@ Diseño intuitivo con panel lateral, temas claro/oscuro, y navegación fluida en
 
 
 ## 📦 Arquitectura por Archivos
-### Este proyecto realiza las siguientes acciones:
 | Archivo                         | Descripción                                           |
 | ------------------------------- | ----------------------------------------------------- |
 | `interface.py`                  | Interfaz gráfica principal y navegación entre módulos |
