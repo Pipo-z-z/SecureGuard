@@ -1,1 +1,1 @@
-# Proyecto-POO-SecureGuard
+# SecureGuard
