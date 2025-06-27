@@ -27,14 +27,15 @@ Diseño intuitivo con panel lateral, temas claro/oscuro, y navegación fluida en
 *
 ## ¿Cómo Ejecutar?
 ### Requisitos
-Python 3.9+
-Clave API de OpenAI (para los informes IA)
-Permisos de administrador si deseas usar funcionalidades de red
+* Python 3.9+
+* Clave API de OpenAI (para los informes IA)
+* Permisos de administrador si deseas usar funcionalidades de red
 ### Instalación
+```bash
 git clone https://github.com/tu_usuario/secureguard.git
 cd secureguard
 pip install -r requirements.txt
-
+```
 ## Autores
 ###
 * Ccama Cruz, Carlos David
