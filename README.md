@@ -18,13 +18,47 @@ Exporta los resultados a PDF, JSON o CSV, con formato estructurado y claridad pr
 
 ### 🎨 Interfaz Gráfica Moderna (PySide6)
 Diseño intuitivo con panel lateral, temas claro/oscuro, y navegación fluida entre módulos.
-## Descripción
+
+
+## 📊 Componentes por Capas
+### 1. Interfaz de Usuario
+* PySide6, QMainWindow, QTabWidget, QTableWidget
+
+* Temas: claro / oscuro
+
+* Navegación lateral + pestañas de herramientas
+
+### 2. Lógica de Control
+* SecurityApp: controlador central (eventos, navegación, datos)
+
+### 3. Módulos Funcionales
+* port_scanner.py – Wrapper para Nmap
+
+* sniffer.py – Captura de paquetes con Scapy
+
+* keylogger.py – Detección de procesos sospechosos
+
+### 4. IA y Reportes
+* ia_asistente.py – Llama a GPT-4o con datos y genera informe técnico
+
+### 5. Exportación
+* fpdf para guardar informes en PDF
+* Planificado: JSON / CSV
+
+
+
+## 📦 Arquitectura por Archivos
 ### Este proyecto realiza las siguientes acciones:
-*
-*
-*
-*
-*
+| Archivo                         | Descripción                                           |
+| ------------------------------- | ----------------------------------------------------- |
+| `interface.py`                  | Interfaz gráfica principal y navegación entre módulos |
+| `port_scanner.py`               | Escaneo de puertos usando Nmap                        |
+| `sniffer.py`                    | Captura y análisis de paquetes con Scapy              |
+| `keylogger.py`                  | Detección de conexiones sospechosas                   |
+| `ia_asistente.py`               | Generación del informe con IA (GPT-4o)                |
+| `pdf_generator.py` *(opcional)* | Exportación a PDF/CSV (en desarrollo)                 |
+| `requirements.txt`              | Dependencias del proyecto                             |
+
 ## ¿Cómo Ejecutar?
 ### Requisitos
 * Python 3.9+
