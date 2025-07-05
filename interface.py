@@ -40,7 +40,7 @@ class SecurityApp(QMainWindow):
     from PySide6.QtCore import QTimer
 
     def aplicar_modo_oscuro(self):
-        dark_palette = QPalette()  # ← ESTO DEFINE LA VARIABLE
+        dark_palette = QPalette()  
         dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))
         dark_palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
         dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
@@ -56,10 +56,10 @@ class SecurityApp(QMainWindow):
         dark_palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
 
         QApplication.instance().setPalette(dark_palette)
-        self.actualizar_estilo_home(modo="oscuro")  # Aplica estilos extra
+        self.actualizar_estilo_home(modo="oscuro")  
 
     def aplicar_modo_claro(self):
-        QApplication.instance().setPalette(QPalette())  # Paleta por defecto
+        QApplication.instance().setPalette(QPalette()) 
         self.actualizar_estilo_home(modo="claro")
 
     def update_progress(self, bar):
@@ -83,18 +83,14 @@ class SecurityApp(QMainWindow):
         main_widget = QWidget()
         self.setCentralWidget(main_widget)
 
-        # Layout principal: Horizontal (navegación izquierda, contenido derecha)
         main_layout = QHBoxLayout(main_widget)
 
-        # Panel de navegación lateral
         self.setup_navigation_panel()
         main_layout.addWidget(self.nav_panel)
 
-        # Contenedor de páginas
         self.pages = QStackedWidget()
         main_layout.addWidget(self.pages)
 
-        # Páginas
         self.init_home_page()
         self.init_vuln_scan_page()
         self.init_report_page()
@@ -153,7 +149,7 @@ class SecurityApp(QMainWindow):
             nav_layout.addWidget(btn)
 
         nav_layout.addStretch()
-        # Botones de tema
+
         tema_oscuro_btn = QPushButton("🌙 Modo Oscuro")
         tema_oscuro_btn.clicked.connect(self.aplicar_modo_oscuro)
         nav_layout.addWidget(tema_oscuro_btn)
@@ -179,7 +175,6 @@ class SecurityApp(QMainWindow):
         layout = QVBoxLayout(page)
         layout.setAlignment(Qt.AlignCenter)
 
-        # Crear los elementos primero
         self.home_title = QLabel("Secure Guard")
         self.home_title.setAlignment(Qt.AlignCenter)
         self.home_title.setStyleSheet("""
@@ -205,15 +200,13 @@ class SecurityApp(QMainWindow):
                 margin-top: 60px;
             """)
 
-        # Agregarlos al layout
         layout.addWidget(self.home_title)
         layout.addWidget(self.home_description)
         layout.addWidget(self.home_icon)
 
         self.pages.addWidget(page)
 
-        # 🛠 Ahora sí, aplicar estilos
-        self.actualizar_estilo_home(modo="oscuro")  # o "claro" si es el tema por defecto
+        self.actualizar_estilo_home(modo="oscuro") 
 
     def init_vuln_scan_page(self):
         page = QWidget()
@@ -223,7 +216,7 @@ class SecurityApp(QMainWindow):
         tabs = QTabWidget()
         layout.addWidget(tabs)
 
-        self.tabs = tabs  # Para mantener compatibilidad con funciones existentes
+        self.tabs = tabs  
         self.init_port_scan_tab()
         self.init_sniffer_tab()
         self.init_keylogger_tab()
@@ -282,7 +275,6 @@ class SecurityApp(QMainWindow):
         controls.addWidget(btn)
         controls.addStretch()
 
-        # Tabla de resultados
         self.port_table = QTableWidget()
         self.port_table.setColumnCount(3)
         self.port_table.setHorizontalHeaderLabels(["Puerto", "Protocolo", "Estado"])
@@ -290,7 +282,6 @@ class SecurityApp(QMainWindow):
         self.port_table.setStyleSheet("font-size: 16px;")
         layout.addWidget(self.port_table, 3)
 
-        # Texto de vulnerabilidades
         self.vuln_label = QLabel()
         self.vuln_label.setWordWrap(True)
         self.vuln_label.setStyleSheet("font-size: 16px;")
@@ -353,7 +344,6 @@ class SecurityApp(QMainWindow):
         page = QWidget()
         layout = QHBoxLayout(page)
 
-        # -- Panel izquierdo: solo un botón
         controls = QVBoxLayout()
         gen_btn = QPushButton("Generar Reporte")
         gen_btn.clicked.connect(self.run_generate_report)
@@ -361,7 +351,6 @@ class SecurityApp(QMainWindow):
         controls.addStretch()
         layout.addLayout(controls, 1)
 
-        # -- Panel derecho: visor del informe
         self.report_view = QTextEdit()
         self.report_view.setReadOnly(True)
         self.report_view.setStyleSheet("font-size:16px;")
@@ -395,15 +384,15 @@ class SecurityApp(QMainWindow):
 
             estado_item = QTableWidgetItem(estado.upper())
             estado_item.setForeground(QColor("black"))
-            # Colorear según estado
+     
             if estado == 'open':
-                estado_item.setBackground(QColor("#A5D6A7"))  # verde claro
+                estado_item.setBackground(QColor("#A5D6A7"))
             elif estado == 'closed':
-                estado_item.setBackground(QColor("#E0E0E0"))  # gris
+                estado_item.setBackground(QColor("#E0E0E0")) 
             elif estado == 'filtered':
-                estado_item.setBackground(QColor("#FFCC80"))  # naranja claro
+                estado_item.setBackground(QColor("#FFCC80"))  
             else:
-                estado_item.setBackground(QColor("#B0BEC5"))  # azul grisáceo
+                estado_item.setBackground(QColor("#B0BEC5"))  
 
             self.port_table.setItem(i, 2, estado_item)
 
@@ -417,7 +406,6 @@ class SecurityApp(QMainWindow):
 
         self.vuln_label.setText(texto)
 
-        # Guardar datos de escaneo en lista sin cabeceras
         self.portscan_lista_datos = []
         for puerto, proto, estado in data['puertos_abiertos']:
             self.portscan_lista_datos.append([str(puerto), proto, estado])
@@ -447,7 +435,6 @@ class SecurityApp(QMainWindow):
             QMessageBox.information(self, "Enlaces HTTP Detectados",
                                     "\n".join([f"{i + 1}. {link}" for i, link in enumerate(links)]))
 
-        # Construir lista de solo valores
         self.sniffer_lista_datos = []
         for pkt in packets:
             fila = [
@@ -479,15 +466,15 @@ class SecurityApp(QMainWindow):
             for j, val in enumerate(row):
                 item = QTableWidgetItem(str(val))
                 if row[4] != "ESTABLISHED":
-                    item.setBackground(QColor("#FFCDD2"))  # rojo claro si estado no es "establecido"
-                    item.setForeground(QColor("black"))  # letras negras
+                    item.setBackground(QColor("#FFCDD2")) 
+                    item.setForeground(QColor("black")) 
                 else:
-                    item.setBackground(QColor("#C8E6C9"))  # verde claro
+                    item.setBackground(QColor("#C8E6C9"))  
                     item.setForeground(QColor("black"))
                 self.keylog_output.setItem(i, j, item)
 
     def run_generate_report(self):
-        # 1) Preparar insumos en texto
+    
         nmap_results = "\n".join(
             [", ".join(row) for row in getattr(self, "portscan_lista_datos", [])]
         ) or "No hay datos de escaneo."
@@ -496,7 +483,7 @@ class SecurityApp(QMainWindow):
             [", ".join(row) for row in getattr(self, "sniffer_lista_datos", [])]
         ) or "No hay datos de sniffer."
 
-        # Convertir tabla de keylogger a texto plano
+     
         keylog_data = []
         if hasattr(self, "keylog_output"):
             for r in range(self.keylog_output.rowCount()):
@@ -508,19 +495,17 @@ class SecurityApp(QMainWindow):
 
         keylog_results = "\n".join(keylog_data) or "No se detectaron conexiones sospechosas."
 
-        # 2) Llamar a GPT-4o mediante tu helper
         try:
             informe = generar_informe_ia(nmap_results, keylog_results, packet_sniff)
         except Exception as e:
             informe = f"[ERROR al generar informe]\n{e}"
 
-        # 3) Mostrar en la pestaña
         self.report_view.setPlainText(informe)
 
 
 def main():
     app = QApplication(sys.argv)
-    # Estilo oscuro
+
     app.setStyle('Fusion')
     dark_palette = QPalette()
     dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))
