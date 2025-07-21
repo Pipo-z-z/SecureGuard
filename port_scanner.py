@@ -1,4 +1,13 @@
+
 import nmap
+import joblib
+import numpy as np
+
+# Cargar modelo entrenado y binarizador
+modelo_ruta = "modelo_riesgo_puertos.pkl"
+binarizador_ruta = "binarizador_puertos.pkl"
+clf = joblib.load(modelo_ruta)
+mlb = joblib.load(binarizador_ruta)
 
 puertos_vulnerables = {
     21: "FTP - Acceso anónimo o credenciales débiles",
@@ -80,6 +89,18 @@ puertos_vulnerables = {
     28017: "MongoDB - Puerto HTTP"
 }
 
+def predecir_riesgo(puertos_abiertos, vulnerables):
+    puertos = list(map(str, puertos_abiertos))
+    X_puertos = mlb.transform([puertos])
+    extra = [[
+        len(puertos),
+        int(len(vulnerables) > 0),
+        len(vulnerables)
+    ]]
+    X = np.hstack((X_puertos, extra))
+    pred = clf.predict(X)[0]
+    return pred
+
 def escanear_puertos(ip_objetivo):
     scanner = nmap.PortScanner()
     scanner.scan(ip_objetivo, '1-65535', arguments='-sT -T4 -Pn')
@@ -90,15 +111,23 @@ def escanear_puertos(ip_objetivo):
         "vulnerables": []
     }
 
+    puertos_abiertos_puros = []
+    vulnerables_puros = []
+
     for proto in scanner[ip_objetivo].all_protocols():
         for puerto in sorted(scanner[ip_objetivo][proto].keys()):
             estado = scanner[ip_objetivo][proto][puerto]['state']
             resultado["puertos_abiertos"].append((puerto, proto.upper(), estado))
+            puertos_abiertos_puros.append(puerto)
 
             if estado == 'open' and puerto in puertos_vulnerables:
                 resultado["vulnerables"].append({
                     "puerto": puerto,
                     "descripcion": puertos_vulnerables[puerto]
                 })
+                vulnerables_puros.append(puerto)
 
+    # Predecir riesgo usando IA
+    resultado["riesgo_estimado"] = predecir_riesgo(puertos_abiertos_puros, vulnerables_puros)
     return resultado
+
