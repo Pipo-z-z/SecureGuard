@@ -1,15 +1,20 @@
 import sys
+import joblib
+modelo_sniffer = joblib.load("modelo_sniffer.pkl")
+modelo_puertos = joblib.load("modelo_riesgo_puertos.pkl")
+
 from ia_asistente import generar_informe_ia
 import openai
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
                                QPushButton, QLabel, QTextEdit, QLineEdit, QTableWidget, QTableWidgetItem,
-                               QHeaderView, QGroupBox, QGridLayout, QMessageBox, QProgressBar, QFrame, QStackedWidget   )
+                               QHeaderView, QGroupBox, QGridLayout, QMessageBox, QProgressBar, QFrame, QStackedWidget)
 from PySide6.QtCore import Qt, QThread, Signal, QTimer
 from PySide6.QtGui import QColor, QPalette
+from sniffer_ia import capturar_paquetes_con_ia
+from port_scanner_ia import escanear_puertos
 import datetime
-import port_scanner
-import sniffer
 import keylogger
+
 
 class ScannerThread(QThread):
     result_ready = Signal(dict)
@@ -19,15 +24,17 @@ class ScannerThread(QThread):
         self.ip = ip
 
     def run(self):
-        result = port_scanner.escanear_puertos(self.ip)
+        result = escanear_puertos(self.ip)
         self.result_ready.emit(result)
 
+
 class SnifferThread(QThread):
-    result_ready = Signal(list, list)
+    result_ready = Signal(list)
 
     def run(self):
-        paquetes, links = sniffer.capturar_paquetes()
-        self.result_ready.emit(paquetes, links)
+        paquetes = capturar_paquetes_con_ia(30)
+        self.result_ready.emit(paquetes)
+
 
 class KeyloggerThread(QThread):
     result_ready = Signal(list)
@@ -36,11 +43,12 @@ class KeyloggerThread(QThread):
         data = keylogger.detect_suspicious_connections()
         self.result_ready.emit(data)
 
+
 class SecurityApp(QMainWindow):
     from PySide6.QtCore import QTimer
 
     def aplicar_modo_oscuro(self):
-        dark_palette = QPalette()  
+        dark_palette = QPalette()
         dark_palette.setColor(QPalette.Window, QColor(30, 30, 30))
         dark_palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
         dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
@@ -56,10 +64,10 @@ class SecurityApp(QMainWindow):
         dark_palette.setColor(QPalette.HighlightedText, QColor(0, 0, 0))
 
         QApplication.instance().setPalette(dark_palette)
-        self.actualizar_estilo_home(modo="oscuro")  
+        self.actualizar_estilo_home(modo="oscuro")
 
     def aplicar_modo_claro(self):
-        QApplication.instance().setPalette(QPalette()) 
+        QApplication.instance().setPalette(QPalette())
         self.actualizar_estilo_home(modo="claro")
 
     def update_progress(self, bar):
@@ -77,6 +85,11 @@ class SecurityApp(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.sniff_button = QPushButton("Iniciar Sniffer")
+        self.sniff_button.clicked.connect(self.ejecutar_sniffer)
+        self.modelo_sniffer = joblib.load("modelo_sniffer.pkl")
+        self.modelo_puertos = joblib.load("modelo_riesgo_puertos.pkl")
+
         self.setWindowTitle("SecureGuard - Auditoría Modular")
         self.setGeometry(100, 100, 1200, 800)
 
@@ -94,6 +107,10 @@ class SecurityApp(QMainWindow):
         self.init_home_page()
         self.init_vuln_scan_page()
         self.init_report_page()
+
+    def ejecutar_sniffer(self):
+        paquetes = capturar_paquetes_con_ia(30)
+        self.display_sniff_results(paquetes)
 
     def setup_navigation_panel(self):
         self.nav_panel = QFrame()
@@ -184,7 +201,8 @@ class SecurityApp(QMainWindow):
                 margin-top: 10px;
             """)
 
-        self.home_description = QLabel("Secure Guard es una suite completa de herramientas para auditoría de seguridad ética.\nDiseñada para profesionales de ciberseguridad, permite realizar análisis exhaustivos de vulnerabiliadades y pruebas de penetración de manera controlada y responsable.")
+        self.home_description = QLabel(
+            "Secure Guard es una suite completa de herramientas para auditoría de seguridad ética.\nDiseñada para profesionales de ciberseguridad, permite realizar análisis exhaustivos de vulnerabiliadades y pruebas de penetración de manera controlada y responsable.")
         self.home_description.setAlignment(Qt.AlignCenter)
         self.home_description.setWordWrap(True)
         self.home_description.setStyleSheet("""
@@ -206,7 +224,7 @@ class SecurityApp(QMainWindow):
 
         self.pages.addWidget(page)
 
-        self.actualizar_estilo_home(modo="oscuro") 
+        self.actualizar_estilo_home(modo="oscuro")
 
     def init_vuln_scan_page(self):
         page = QWidget()
@@ -216,13 +234,12 @@ class SecurityApp(QMainWindow):
         tabs = QTabWidget()
         layout.addWidget(tabs)
 
-        self.tabs = tabs  
+        self.tabs = tabs
         self.init_port_scan_tab()
         self.init_sniffer_tab()
         self.init_keylogger_tab()
 
         self.pages.addWidget(page)
-
 
     def actualizar_estilo_home(self, modo="oscuro"):
         if modo == "oscuro":
@@ -291,9 +308,33 @@ class SecurityApp(QMainWindow):
         self.port_progress.setValue(0)
         controls.addWidget(self.port_progress)
 
-    
-
         self.tabs.addTab(tab, "Escaneo de Puertos")
+
+    def realizar_escaneo(self):
+        ip = self.ip_input.text().strip()
+        if not ip:
+            self.resultado_output.setPlainText("Por favor, ingresa una IP válida.")
+            return
+
+        self.resultado_output.append(f"[⏳] Escaneando IP: {ip}...\n")
+        resultado = escanear_puertos(ip)
+
+        texto = f"""[✔] Estado del host: {resultado['estado_host']}
+    [🤖] Riesgo estimado (IA): {resultado['riesgo_estimado']}
+
+    --- Puertos Abiertos ---
+    """
+        for puerto, proto, estado in resultado['puertos_abiertos']:
+            texto += f"  - {puerto}/{proto} ({estado})\n"
+
+        texto += "\n--- Posibles Vulnerabilidades Detectadas ---\n"
+        if resultado['vulnerables']:
+            for vul in resultado['vulnerables']:
+                texto += f"  - Puerto {vul['puerto']}: {vul['descripcion']}\n"
+        else:
+            texto += "  ❎ Ninguna vulnerabilidad crítica detectada.\n"
+
+        self.resultado_output.setPlainText(texto)
 
     def init_sniffer_tab(self):
         tab = QWidget()
@@ -304,18 +345,17 @@ class SecurityApp(QMainWindow):
         layout.addWidget(btn)
 
         self.sniff_output = QTableWidget()
-        self.sniff_output.setColumnCount(11)
+        self.sniff_output.setColumnCount(12)
         self.sniff_output.setHorizontalHeaderLabels([
-            "Hora", "IP Origen", "IP Destino", "Protocolo", "Nombre", "TTL", "Long", "IP_ID",
+            "Hora", "IP Origen", "IP Destino", "Protocolo", "Servicio", "TTL", "Long", "IP_ID",
             "Puerto Origen", "Puerto Destino", "Flags"
         ])
         self.sniff_output.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         layout.addWidget(self.sniff_output)
-        
+
         self.sniff_progress = QProgressBar()
         self.sniff_progress.setValue(0)
         layout.addWidget(self.sniff_progress)
-    
 
         self.tabs.addTab(tab, "Sniffer de Red")
 
@@ -331,12 +371,11 @@ class SecurityApp(QMainWindow):
         self.keylog_output.setColumnCount(5)
         self.keylog_output.setHorizontalHeaderLabels(["Proceso", "PID", "Origen", "Destino", "Estado"])
         self.keylog_output.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        
+
         self.keylog_progress = QProgressBar()
         self.keylog_progress.setValue(0)
         layout.addWidget(self.keylog_progress)
         layout.addWidget(self.keylog_output)
-    
 
         self.tabs.addTab(tab, "Keylogger / Conexiones")
 
@@ -384,30 +423,59 @@ class SecurityApp(QMainWindow):
 
             estado_item = QTableWidgetItem(estado.upper())
             estado_item.setForeground(QColor("black"))
-     
+
             if estado == 'open':
                 estado_item.setBackground(QColor("#A5D6A7"))
             elif estado == 'closed':
-                estado_item.setBackground(QColor("#E0E0E0")) 
+                estado_item.setBackground(QColor("#E0E0E0"))
             elif estado == 'filtered':
-                estado_item.setBackground(QColor("#FFCC80"))  
+                estado_item.setBackground(QColor("#FFCC80"))
             else:
-                estado_item.setBackground(QColor("#B0BEC5"))  
+                estado_item.setBackground(QColor("#B0BEC5"))
 
             self.port_table.setItem(i, 2, estado_item)
 
-        texto = f"<b>Estado del host:</b> {estado_host}<br><br>"
+        # --- HTML para interfaz ---
+        texto_html = f"<b>Estado del host:</b> {estado_host}<br><br>"
         if data["vulnerables"]:
-            texto += "<b style='color:#ff5555;'>[!] Vulnerabilidades detectadas:</b><br>"
+            texto_html += "<b style='color:#ff5555;'>[!] Vulnerabilidades detectadas:</b><br>"
             for vuln in data["vulnerables"]:
-                texto += f"Puerto {vuln['puerto']}: {vuln['descripcion']}<br>"
+                texto_html += f"Puerto {vuln['puerto']}: {vuln['descripcion']}<br>"
         else:
-            texto += "No se detectaron vulnerabilidades conocidas."
+            texto_html += "No se detectaron vulnerabilidades conocidas."
 
-        self.vuln_label.setText(texto)
+        if 'riesgo_estimado' in data:
+            texto_html += f"<br><br><b style='color:#ffaa00;'>⚠️ Riesgo estimado (IA):</b> <b>{data['riesgo_estimado'].upper()}</b>"
+        else:
+            texto_html += "<br><br><i style='color:#999;'>[IA no disponible]</i>"
 
+        self.vuln_label.setText(texto_html)
+
+        # --- Texto PLANO para informe de IA ---
+        texto_plano = f"Estado del host: {estado_host}\n"
+        texto_plano += "Puertos abiertos:\n"
+        for puerto, proto, estado in puertos:
+            if estado == 'open':
+                texto_plano += f"- {puerto}/{proto}: {estado}\n"
+
+        if data["vulnerables"]:
+            texto_plano += "\n[!] Vulnerabilidades detectadas:\n"
+            for vuln in data["vulnerables"]:
+                texto_plano += f"- Puerto {vuln['puerto']}: {vuln['descripcion']}\n"
+        else:
+            texto_plano += "\nNo se detectaron vulnerabilidades conocidas.\n"
+
+        if "riesgo_estimado" in data:
+            texto_plano += f"\n⚠️ Riesgo estimado (IA): {data['riesgo_estimado'].upper()}"
+        else:
+            texto_plano += "\n[IA no disponible]"
+
+        # ✅ Asignar este a la variable que se pasará a generar_informe_ia
+        self.resultado_puertos = texto_plano
+
+        # Guardar lista para exportaciones
         self.portscan_lista_datos = []
-        for puerto, proto, estado in data['puertos_abiertos']:
+        for puerto, proto, estado in puertos:
             self.portscan_lista_datos.append([str(puerto), proto, estado])
 
     def run_sniffer(self):
@@ -418,39 +486,40 @@ class SecurityApp(QMainWindow):
         self.sniff_thread.start()
         self.update_progress(self.sniff_progress)
 
-    def display_sniff_results(self, packets, links):
+    def display_sniff_results(self, packets):
         self.sniff_output.setRowCount(len(packets))
+        self.sniff_output.setColumnCount(12)
+        self.sniff_output.setHorizontalHeaderLabels([
+            "Tiempo", "Origen", "Destino", "Protocolo", "Servicio", "TTL", "Longitud", "ID IP",
+            "Puerto Origen", "Puerto Destino", "Flags", "Clasificación IA"
+        ])
+
+        self.sniffer_lista_datos = []
+        self.resultado_sniffer = []
 
         for i, pkt in enumerate(packets):
             fila = [
-                pkt['tiempo'], pkt['origen'], pkt['destino'], str(pkt['protocolo']), pkt['nombre'],
-                str(pkt['ttl']), str(pkt['longitud']), str(pkt['id_ip']),
-                str(pkt['puerto_origen']), str(pkt['puerto_destino']), str(pkt['flags'])
+                pkt.get('tiempo', ''),
+                pkt.get('origen', ''),
+                pkt.get('destino', ''),
+                str(pkt.get('protocolo', '')),
+                pkt.get('servicio', 'other'),  # ✅ así evitas el error
+                str(pkt.get('ttl', '')),
+                str(pkt.get('longitud', '')),
+                str(pkt.get('id_ip', '')),
+                str(pkt.get('puerto_origen', '')),
+                str(pkt.get('puerto_destino', '')),
+                str(pkt.get('flags', '')),
+                pkt.get('clasificacion', 'Desconocido')
             ]
+
+            self.sniffer_lista_datos.append(fila[:-1])  # Guarda solo los 11 primeros datos sin clasificación
+            self.resultado_sniffer.append(fila[:-1])
+
             for j, valor in enumerate(fila):
                 item = QTableWidgetItem(valor)
+                item.setFlags(item.flags() ^ Qt.ItemIsEditable)  # Para hacerlo de solo lectura si gustas
                 self.sniff_output.setItem(i, j, item)
-
-        if links:
-            QMessageBox.information(self, "Enlaces HTTP Detectados",
-                                    "\n".join([f"{i + 1}. {link}" for i, link in enumerate(links)]))
-
-        self.sniffer_lista_datos = []
-        for pkt in packets:
-            fila = [
-                pkt['tiempo'],
-                pkt['origen'],
-                pkt['destino'],
-                str(pkt['protocolo']),
-                pkt['nombre'],
-                str(pkt['ttl']),
-                str(pkt['longitud']),
-                str(pkt['id_ip']),
-                str(pkt['puerto_origen']),
-                str(pkt['puerto_destino']),
-                str(pkt['flags'])
-            ]
-            self.sniffer_lista_datos.append(fila)
 
     def run_keylogger(self):
         self.keylog_output.setRowCount(0)
@@ -466,37 +535,22 @@ class SecurityApp(QMainWindow):
             for j, val in enumerate(row):
                 item = QTableWidgetItem(str(val))
                 if row[4] != "ESTABLISHED":
-                    item.setBackground(QColor("#FFCDD2")) 
-                    item.setForeground(QColor("black")) 
+                    item.setBackground(QColor("#FFCDD2"))
+                    item.setForeground(QColor("black"))
                 else:
-                    item.setBackground(QColor("#C8E6C9"))  
+                    item.setBackground(QColor("#C8E6C9"))
                     item.setForeground(QColor("black"))
                 self.keylog_output.setItem(i, j, item)
 
     def run_generate_report(self):
-    
-        nmap_results = "\n".join(
-            [", ".join(row) for row in getattr(self, "portscan_lista_datos", [])]
-        ) or "No hay datos de escaneo."
-
-        packet_sniff = "\n".join(
-            [", ".join(row) for row in getattr(self, "sniffer_lista_datos", [])]
-        ) or "No hay datos de sniffer."
-
-     
-        keylog_data = []
-        if hasattr(self, "keylog_output"):
-            for r in range(self.keylog_output.rowCount()):
-                fila = []
-                for c in range(self.keylog_output.columnCount()):
-                    item = self.keylog_output.item(r, c)
-                    fila.append(item.text() if item else "")
-                keylog_data.append(" | ".join(fila))
-
-        keylog_results = "\n".join(keylog_data) or "No se detectaron conexiones sospechosas."
-
         try:
-            informe = generar_informe_ia(nmap_results, keylog_results, packet_sniff)
+            # Usamos los resultados enriquecidos por IA
+            resultado_puertos = getattr(self, "resultado_puertos", "No hay datos de escaneo.")
+            resultado_sniffer = getattr(self, "resultado_sniffer", "No hay datos del sniffer.")
+            resultado_keylogger = getattr(self, "resultado_keylogger", "No hay registros de keylogger.")
+
+            informe = generar_informe_ia(resultado_puertos, resultado_keylogger, resultado_sniffer)
+
         except Exception as e:
             informe = f"[ERROR al generar informe]\n{e}"
 
@@ -527,18 +581,22 @@ def main():
     win.show()
     sys.exit(app.exec())
 
+
 if __name__ == "__main__":
     main()
+
 
     def update_progress(self, bar):
         from PySide6.QtCore import QTimer
         bar.setValue(0)
         self.timer = QTimer()
+
         def update():
             v = bar.value()
             if v < 100:
                 bar.setValue(v + 5)
             else:
                 self.timer.stop()
+
         self.timer.timeout.connect(update)
         self.timer.start(50)
